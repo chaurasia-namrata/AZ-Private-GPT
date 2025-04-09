@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html class="h-full">
+<head>
+    <title>InternalGPT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        ms: {
+                            blue: '#0078D4',
+                            teal: '#00B294',
+                            gray: {
+                                20: '#F3F2F1',
+                                160: '#605E5C',
+                                190: '#323130'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap');
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .settings-panel {
+            transition: all 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            visibility: hidden;
+            overflow: hidden;
+        }
+        .settings-panel.open {
+            max-height: 500px;
+            opacity: 1;
+            visibility: visible;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+    <!-- Header with collapsible settings -->
+    <header class="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl text-gray-800 dark:text-white shadow-sm py-4 sticky top-0 z-10 border-b border-gray-200/50 dark:border-gray-700/50 w-full">
+        <div class="w-full px-4">
+            <div class="flex items-center justify-between h-8">
+                <!-- Logo and Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400">
+                        <span class="text-white font-bold text-lg">I</span>
+                    </div>
+                    <h1 class="text-lg font-medium tracking-tight">InternalGPT</h1>
+                </div>
+
+                <!-- Right section -->
+                <div class="flex items-center space-x-2">
+                    <!-- Settings toggle -->
+                    <button id="settings-toggle" 
+                            class="inline-flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- User profile toggle -->
+                    <div class="relative">
+                        <button id="profile-toggle" 
+                                class="inline-flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200 text-gray-700 dark:text-gray-200">
+                            <span class="text-sm font-medium" id="user-name">John Doe</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400" id="user-email">john@example.com</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        
+                        <!-- User profile dropdown -->
+                        <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
+                            <div class="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
+                                <p class="text-sm font-medium text-gray-800 dark:text-white" id="dropdown-user-name">John Doe</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400" id="dropdown-user-email">john@example.com</p>
+                            </div>
+                            <div class="p-2">
+                                <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/70 rounded-lg transition-colors duration-200" onclick="showChangePassword()">Change Password</button>
+                                <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/70 rounded-lg transition-colors duration-200" onclick="showProfile()">Profile Settings</button>
+                                <button class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700/70 rounded-lg transition-colors duration-200" onclick="logout()">Sign Out</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                
+            </div>
+        </div>
+        
+        <!-- Collapsible settings panel -->
+        <div id="settings-panel" class="settings-panel bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl absolute right-4 top-14 rounded-2xl shadow-lg w-80 overflow-hidden border border-gray-200/50 dark:border-gray-700/50 text-gray-800 dark:text-white">
+            <div class="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
+                <h3 class="font-medium">Model Settings</h3>
+            </div>
+            <div class="p-4 space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+                <div>
+                    <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">Model</label>
+                    <select id="model" class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-ms-blue/20 dark:ring-ms-teal/20 focus:border-ms-blue dark:focus:border-ms-teal outline-none transition-shadow duration-200">
+                        {% for model in models %}
+                            <option value="{{ model.id }}">{{ model.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Temperature</label>
+                        <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="w-full">
+                        <div class="flex justify-between text-xs">
+                            <span>Precise</span>
+                            <span>Creative</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm mb-1">Top P</label>
+                        <input type="range" id="top_p" min="0" max="1" step="0.05" value="1" class="w-full">
+                        <div class="flex justify-between text-xs">
+                            <span>Focused</span>
+                            <span>Diverse</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Frequency Penalty</label>
+                        <input type="range" id="frequency_penalty" min="-2" max="2" step="0.1" value="0" class="w-full">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm mb-1">Presence Penalty</label>
+                        <input type="range" id="presence_penalty" min="-2" max="2" step="0.1" value="0" class="w-full">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">Max Tokens</label>
+                    <input type="number" id="max_tokens" min="100" max="4000" value="800" 
+                           class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-ms-blue/20 dark:ring-ms-teal/20 focus:border-ms-blue dark:focus:border-ms-teal outline-none transition-shadow duration-200">
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Stop Sequences (comma separated)</label>
+                    <input type="text" id="stop" 
+                           class="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-sm">
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Number of Responses</label>
+                    <input type="number" id="n" min="1" max="5" value="1" 
+                           class="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-sm">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar - Conversation history -->
+        <aside class="w-72 flex-shrink-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-r border-gray-200/50 dark:border-gray-700/50">
+            <div class="h-full flex flex-col p-6">
+                <!-- Conversations Section -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-medium text-gray-700 dark:text-gray-300">Conversations</h3>
+                        <button id="new-chat" class="p-1.5 rounded-lg bg-ms-blue/10 hover:bg-ms-blue/20 text-ms-blue dark:text-ms-teal transition-colors duration-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="conversation-list" class="flex-1 overflow-y-auto space-y-2 pr-2 mb-4">
+                        <!-- Conversations will be added here dynamically -->
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div class="pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-ms-blue/10 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-ms-blue dark:text-ms-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                </svg>
+                            </div>
+                            <div class="text-sm text-gray-700 dark:text-gray-300">John Doe</div>
+                        </div>
+                        <button onclick="window.location.href='/logout'" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors duration-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main chat area -->
+        <main class="flex-1 flex flex-col bg-white/40 dark:bg-gray-900/40">
+            <div id="chat-history" class="flex-1 overflow-y-auto px-8 py-6 space-y-8 scroll-smooth relative">
+                <!-- Welcome state for empty conversation -->
+                <div id="welcome-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 space-y-8">
+                    <div class="text-center space-y-2">
+                        <h2 class="text-2xl font-medium text-gray-800 dark:text-white">Welcome to InternalGPT</h2>
+                        <p class="text-gray-600 dark:text-gray-400">Your secure AI assistant with chat and image generation capabilities</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl w-full">
+                        <button class="sample-prompt text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-teal-400 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 group">
+                            <div class="text-sm font-medium text-gray-800 dark:text-white mb-1">Investment Visual</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-teal-400">/imagine A modern infographic showing the power of compound interest in mutual funds</div>
+                        </button>
+                        <button class="sample-prompt text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-teal-400 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 group">
+                            <div class="text-sm font-medium text-gray-800 dark:text-white mb-1">Portfolio Strategy</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-teal-400">/imagine A clean visualization of asset allocation across equity, debt, and gold</div>
+                        </button>
+                        <button class="sample-prompt text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-teal-400 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 group">
+                            <div class="text-sm font-medium text-gray-800 dark:text-white mb-1">Investment Basics</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-teal-400">What's the difference between mutual funds and ETFs for a beginner investor?</div>
+                        </button>
+                        <button class="sample-prompt text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-teal-400 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 group">
+                            <div class="text-sm font-medium text-gray-800 dark:text-white mb-1">Market Analysis</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-teal-400">Explain how to analyze a company's financial health before investing</div>
+                        </button>
+
+
+                    
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200/50 dark:border-gray-700/50 p-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg">
+                <div class="relative max-w-3xl mx-auto">
+                    <textarea id="message" 
+                              class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-lg transition-shadow duration-200 hover:shadow-xl"
+                              placeholder="Ask me anything..." rows="1"></textarea>
+                    <button id="send" class="absolute right-3 bottom-3 p-1.5 rounded-lg text-blue-500 hover:text-white hover:bg-blue-500 transition-colors duration-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-3 font-medium">
+                    Microsoft AI may produce inaccurate information
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // User profile functionality
+        const profileToggle = document.getElementById('profile-toggle');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email');
+        const dropdownUserName = document.getElementById('dropdown-user-name');
+        const dropdownUserEmail = document.getElementById('dropdown-user-email');
+        
+        // Update user info function
+        function updateUserInfo(name, email) {
+            userName.textContent = name;
+            userEmail.textContent = email;
+            dropdownUserName.textContent = name;
+            dropdownUserEmail.textContent = email;
+        }
+        
+        // Toggle profile dropdown
+        profileToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('hidden');
+            if (settingsPanel.classList.contains('open')) {
+                settingsPanel.classList.remove('open');
+            }
+        });
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            profileDropdown.classList.add('hidden');
+            settingsPanel.classList.remove('open');
+        });
+        
+        // Prevent dropdown close when clicking inside
+        profileDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // User actions
+        function showChangePassword() {
+            // TODO: Implement password change modal
+            alert('Change password functionality will be implemented');
+        }
+        
+        function showProfile() {
+            // TODO: Implement profile settings modal
+            alert('Profile settings functionality will be implemented');
+        }
+        
+        async function logout() {
+            try {
+                const response = await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    alert('Failed to logout. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('An error occurred during logout.');
+            }
+        }
+        
+        // Settings panel functionality
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsPanel = document.getElementById('settings-panel');
+        
+        settingsToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsPanel.classList.toggle('open');
+            if (!profileDropdown.classList.contains('hidden')) {
+                profileDropdown.classList.add('hidden');
+            }
+        });
+        
+        // Close settings when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+                settingsPanel.classList.remove('open');
+            }
+        });
+
+        // Prevent clicks inside panel from closing it
+        settingsPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Auto-resize textarea
+        const textarea = document.getElementById('message');
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        });
+
+        // Conversation Management
+        let currentConversationId = null;
+        const conversationList = document.getElementById('conversation-list');
+        const newChatButton = document.getElementById('new-chat');
+
+        // Load conversations on startup
+        loadConversations();
+
+        // Create new conversation
+        newChatButton.addEventListener('click', async () => {
+            const response = await fetch('/conversations', { method: 'POST' });
+            const conversation = await response.json();
+            currentConversationId = conversation.id;
+            clearChat();
+            loadConversations();
+        });
+
+        async function loadConversations() {
+            const response = await fetch('/conversations');
+            const conversations = await response.json();
+            
+            conversationList.innerHTML = '';
+            conversations.forEach(conv => {
+                const button = document.createElement('button');
+                button.className = `group w-full text-left px-3 py-2 rounded-lg transition-colors duration-200 text-sm ${conv.id === currentConversationId 
+                    ? 'bg-ms-blue/10 text-ms-blue dark:text-ms-teal' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}`;
+                
+                const title = conv.title || 'New Conversation';
+                button.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="truncate">${title}</span>
+                        <button class="delete-conv hidden group-hover:block p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400" data-id="${conv.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>`;
+                
+                button.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-conv')) {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                    } else {
+                        loadConversation(conv.id);
+                    }
+                });
+                
+                conversationList.appendChild(button);
+            });
+
+            // If no conversation is selected and we have conversations, select the first one
+            if (!currentConversationId && conversations.length > 0) {
+                loadConversation(conversations[0].id);
+            }
+            // If no conversations exist, create a new one
+            else if (conversations.length === 0) {
+                newChatButton.click();
+            }
+        }
+
+        async function loadConversation(id) {
+            const response = await fetch(`/conversations/${id}`);
+            const conversation = await response.json();
+            
+            currentConversationId = id;
+            clearChat();
+            hideWelcomeState();
+            
+            // Load conversation history
+            if (conversation.messages && conversation.messages.length > 0) {
+                conversation.messages.forEach(msg => {
+                    addMessage(msg.content, msg.role, msg.is_image);
+                });
+            } else {
+                showWelcomeState();
+            }
+            
+            // Update conversation list UI
+            loadConversations();
+        }
+
+        async function deleteConversation(id) {
+            await fetch(`/conversations/${id}`, { method: 'DELETE' });
+            if (id === currentConversationId) {
+                currentConversationId = null;
+                clearChat();
+            }
+            loadConversations();
+        }
+
+        function clearChat() {
+            const chatHistory = document.getElementById('chat-history');
+            // Preserve the welcome-state div when clearing
+            const welcomeState = document.getElementById('welcome-state');
+            chatHistory.innerHTML = '';
+            chatHistory.appendChild(welcomeState);
+            textarea.value = '';
+            showWelcomeState();
+            textarea.style.height = 'auto';
+        }
+
+        function removeMessage(messageId) {
+            const messageElement = document.getElementById(`message-${messageId}`);
+            if (messageElement) {
+                messageElement.remove();
+            }
+        }
+
+        // Welcome state management
+        function showWelcomeState() {
+            const welcomeState = document.getElementById('welcome-state');
+            if (!welcomeState) return;
+            welcomeState.style.display = 'flex';
+        }
+
+        function hideWelcomeState() {
+            const welcomeState = document.getElementById('welcome-state');
+            if (!welcomeState) return;
+            welcomeState.style.display = 'none';
+        }
+
+        // Initialize welcome state
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!currentConversationId) {
+                showWelcomeState();
+            }
+        });
+
+        // Chat functionality
+        document.getElementById('send').addEventListener('click', sendMessage);
+        
+        function sendMessage() {
+            const message = textarea.value.trim();
+            if (!message || !currentConversationId) return;
+
+            // Check for /imagine command
+            if (message.startsWith('/imagine ')) {
+                const prompt = message.slice(9);
+                // Add user message
+                addMessage(message, 'user');
+                
+                // Clear input
+                textarea.value = '';
+                textarea.style.height = 'auto';
+                
+                // Show loading message
+                const loadingId = Date.now();
+                addMessage('🎨 Generating your image...', 'assistant', false, loadingId);
+                
+                // Create new conversation if needed
+                const createConversation = !currentConversationId ? 
+                    fetch('/conversations', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(response => response.json())
+                        .then(conv => {
+                            currentConversationId = conv.id;
+                            loadConversations(); // Update sidebar immediately
+                            return conv;
+                        })
+                    : Promise.resolve({ id: currentConversationId });
+                
+                // Generate image after ensuring conversation exists
+                createConversation.then(() => fetch('/generate-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        prompt,
+                        conversation_id: currentConversationId
+                    })
+                }))
+                .then(response => response.json())
+                .then(data => {
+                    // Remove loading message
+                    removeMessage(loadingId);
+                    
+                    if (data.success) {
+                        addMessage(data.image_url, 'assistant', true);
+                        // Update conversation list to show new message
+                        loadConversations();
+                    } else {
+                        addMessage('Error generating image: ' + data.error, 'assistant');
+                    }
+                })
+                .catch(error => {
+                    // Remove loading message
+                    removeMessage(loadingId);
+                    addMessage('Error generating image: ' + error.message, 'assistant');
+                });
+                return;
+            }
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            
+            // Clear input
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            
+            // Get AI response
+            getAIResponse(message);
+        }
+
+        // Handle sample prompts
+        document.querySelectorAll('.sample-prompt').forEach(button => {
+            button.addEventListener('click', () => {
+                const prompt = button.querySelector('div:last-child').textContent;
+                document.getElementById('message').value = prompt;
+                sendMessage();
+            });
+        });
+
+        function addMessage(content, sender, isImage = false, messageId = null) {
+            hideWelcomeState();
+            const chatHistory = document.getElementById('chat-history');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} mb-6`;
+            if (messageId) {
+                messageDiv.id = `message-${messageId}`;
+            }
+            
+            const bubbleWrapper = document.createElement('div');
+            bubbleWrapper.className = 'relative group max-w-3xl';
+            
+            const bubble = document.createElement('div');
+            bubble.className = `w-full rounded-2xl px-6 py-4 shadow-lg ${sender === 'user' 
+                ? 'bg-gradient-to-r from-ms-blue to-ms-blue/90 text-white' 
+                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700'}`;
+            
+            if (sender === 'assistant') {
+                if (content.startsWith('🎨')) {
+                    // Loading animation for image generation
+                    bubble.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <div class="text-base">${content}</div>
+                            <div class="w-4 h-4 border-2 border-gray-600 dark:border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                        </div>`;
+                } else if (isImage) {
+                    bubble.className += ' p-2';
+                    const img = document.createElement('img');
+                    img.src = content;
+                    img.alt = 'Generated image';
+                    img.className = 'rounded-lg max-w-lg w-full h-auto';
+                    bubble.appendChild(img);
+
+                    // Add download button for images
+                    const downloadButton = document.createElement('a');
+                    downloadButton.href = content;
+                    downloadButton.download = 'generated-image.png';
+                    downloadButton.className = 'absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-600';
+                    downloadButton.innerHTML = `
+                        <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>`;
+                    bubbleWrapper.appendChild(downloadButton);
+                } else {
+                    bubble.innerHTML = marked.parse(content);
+                    
+                    // Add copy button for text messages
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 p-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-600';
+                    copyButton.innerHTML = `
+                        <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2M8 8h12a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2v-8a2 2 0 012-2z"/>
+                    </svg>`;
+                
+                    copyButton.addEventListener('click', async () => {
+                        try {
+                            await navigator.clipboard.writeText(content);
+                            const originalHTML = copyButton.innerHTML;
+                            copyButton.innerHTML = `
+                                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>`;
+                            setTimeout(() => {
+                                copyButton.innerHTML = originalHTML;
+                            }, 1500);
+                        } catch (err) {
+                            console.error('Failed to copy:', err);
+                        }
+                    });
+                    bubbleWrapper.appendChild(copyButton);
+                }
+            } else {
+                bubble.textContent = content;
+            }
+            
+            bubbleWrapper.appendChild(bubble);
+            messageDiv.appendChild(bubbleWrapper);
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        async function getAIResponse(message) {
+            if (!currentConversationId) return;
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'flex justify-start mb-4';
+            loadingDiv.innerHTML = `
+                <div class="max-w-3xl rounded-xl px-5 py-3 bg-white dark:bg-gray-800 shadow-lg animate-pulse border border-gray-100 dark:border-gray-700">
+                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mt-2"></div>
+                </div>
+            `;
+            document.getElementById('chat-history').appendChild(loadingDiv);
+
+            const params = new URLSearchParams({
+                message: message,
+                conversation_id: currentConversationId,
+                model: document.getElementById('model').value,
+                temperature: document.getElementById('temperature').value,
+                top_p: document.getElementById('top_p').value,
+                frequency_penalty: document.getElementById('frequency_penalty').value,
+                presence_penalty: document.getElementById('presence_penalty').value,
+                max_tokens: document.getElementById('max_tokens').value,
+                stop: document.getElementById('stop').value,
+                n: document.getElementById('n').value
+            });
+
+            const eventSource = new EventSource(`/chat?${params}`);
+            let currentResponse = '';
+            
+            eventSource.onmessage = function(event) {
+                if (event.data === '[DONE]') {
+                    eventSource.close();
+                    loadingDiv.remove();
+                    // Add the final message when stream is complete
+                    addMessage(currentResponse, 'assistant');
+                    return;
+                }
+
+                const data = JSON.parse(event.data);
+                if (data.title) {
+                    // Update conversation list when title is generated
+                    loadConversations();
+                }
+                if (data.response) {
+                    currentResponse += data.response;
+                    // Update the temporary message during streaming
+                    const tempBubble = document.createElement('div');
+                    tempBubble.className = 'max-w-3xl rounded-2xl px-6 py-4 shadow-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700';
+                    tempBubble.innerHTML = marked.parse(currentResponse);
+                    if (loadingDiv.firstChild) {
+                        loadingDiv.firstChild.replaceWith(tempBubble);
+                    } else {
+                        loadingDiv.appendChild(tempBubble);
+                    }
+                }
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    loadingDiv.remove();
+                    eventSource.close();
+                    addMessage('Error: ' + data.error, 'assistant');
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('EventSource failed:', error);
+                loadingDiv.remove();
+                eventSource.close();
+                addMessage('Error: Connection closed unexpectedly', 'assistant');
+            };
+        }
+
+
+        
+        // Send message on Enter (but allow Shift+Enter for new lines)
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
