@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html class="h-full">
+<head>
+    <title>Register - InternalGPT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center">
+    <div class="w-full max-w-md">
+        <div class="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 space-y-6">
+            <!-- Logo and Title -->
+            <div class="text-center space-y-2">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400 mx-auto">
+                    <span class="text-white font-bold text-xl">I</span>
+                </div>
+                <h1 class="text-2xl font-medium text-gray-900 dark:text-white">Create an account</h1>
+                <p class="text-gray-500 dark:text-gray-400">Get started with InternalGPT</p>
+            </div>
+
+            <!-- Register Form -->
+            <form action="/register" method="POST" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                    <input type="text" id="name" name="name" required
+                           class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                    <input type="email" id="email" name="email" required
+                           class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                    <input type="password" id="password" name="password" required
+                           class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+                </div>
+                <button type="submit"
+                        class="w-full py-2 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-teal-400 text-white font-medium hover:from-blue-600 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200">
+                    Create account
+                </button>
+            </form>
+
+            <!-- Login Link -->
+            <div class="text-center">
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Already have an account?
+                    <a href="/login" class="text-blue-500 hover:text-blue-600 font-medium">Sign in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Handle form submission
+        document.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    const data = await response.json();
+                    alert(data.error || 'Failed to create account');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('An error occurred during registration');
+            }
+        });
+    </script>
+</body>
+</html>

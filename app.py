@@ -1,16 +1,28 @@
-from flask import Flask, request, jsonify, render_template, Response, send_file
+from flask import Flask, request, jsonify, render_template, Response, send_file, session, redirect, url_for
 from openai import AzureOpenAI
 from datetime import datetime
+from functools import wraps
 import json
 import os
 import uuid
 import requests
-from functools import wraps
+import bcrypt
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # For session management
 
-# Store conversations in memory (in production, use a database)
+# Store conversations and users in memory (in production, use a database)
 conversations = {}
+users = {}
+
+# Login required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Configuration - should be moved to environment variables in production
 AZURE_CONFIG = {
@@ -62,9 +74,83 @@ def handle_errors(f):
             return jsonify({"error": str(e)}), 500
     return wrapper
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if email in users and bcrypt.checkpw(password.encode('utf-8'), users[email]['password']):
+            session['user_id'] = email
+            return redirect(url_for('index'))
+        return jsonify({'error': 'Invalid credentials'}), 401
+    
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if email in users:
+            return jsonify({'error': 'Email already registered'}), 400
+        
+        # Hash password before storing
+        hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        users[email] = {
+            'name': name,
+            'password': hashed,
+            'email': email
+        }
+        
+        session['user_id'] = email
+        return redirect(url_for('index'))
+    
+    return render_template('register.html')
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.pop('user_id', None)
+    return jsonify({'message': 'Logged out successfully'})
+
+@app.route('/user/profile', methods=['GET'])
+@login_required
+def get_user_profile():
+    user_id = session.get('user_id')
+    if user_id in users:
+        user = users[user_id]
+        return jsonify({
+            'name': user['name'],
+            'email': user['email']
+        })
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/user/password', methods=['POST'])
+@login_required
+def change_password():
+    user_id = session.get('user_id')
+    if user_id not in users:
+        return jsonify({'error': 'User not found'}), 404
+    
+    current_password = request.json.get('current_password')
+    new_password = request.json.get('new_password')
+    
+    if not bcrypt.checkpw(current_password.encode('utf-8'), users[user_id]['password']):
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    
+    users[user_id]['password'] = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+    return jsonify({'message': 'Password updated successfully'})
+
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html', models=MODELS)
+    user_id = session.get('user_id')
+    user = users.get(user_id)
+    if not user:
+        return redirect(url_for('login'))
+    return render_template('index.html', models=MODELS, user=user)
 
 @app.route('/conversations', methods=['GET', 'POST'])
 @handle_errors
