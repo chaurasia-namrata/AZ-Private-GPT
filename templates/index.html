@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="h-full">
 <head>
-    <title>InternalGPT</title>
+    <title>PrivateGPT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
@@ -61,7 +61,7 @@
                     <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-teal-400">
                         <span class="text-white font-bold text-lg">I</span>
                     </div>
-                    <h1 class="text-lg font-medium tracking-tight">InternalGPT</h1>
+                    <h1 class="text-lg font-medium tracking-tight">PrivateGPT</h1>
                 </div>
 
                 <!-- Right section -->
@@ -72,8 +72,7 @@
                     <div class="relative">
                         <button id="profile-toggle" 
                                 class="inline-flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200 text-gray-700 dark:text-gray-200">
-                            <span class="text-sm font-medium" id="user-name">{{ user.name }}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400" id="user-email">{{ user.email }}</span>
+                            <span class="text-sm font-medium" id="user-name">{{ user.email }}</span>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
@@ -82,8 +81,7 @@
                         <!-- User profile dropdown -->
                         <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
                             <div class="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
-                                <p class="text-sm font-medium text-gray-800 dark:text-white" id="dropdown-user-name">{{ user.name }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400" id="dropdown-user-email">{{ user.email }}</p>
+                                <p class="text-sm font-medium text-gray-800 dark:text-white" id="dropdown-user-name">{{ user.email }}</p>
                             </div>
                             <div class="p-2">
                                 <button class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700/70 rounded-lg transition-colors duration-200" onclick="logout()">Sign Out</button>
@@ -99,19 +97,44 @@
     <div class="flex flex-1 overflow-hidden">
         <!-- Sidebar - Conversation history -->
         <aside class="w-72 flex-shrink-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-r border-gray-200/50 dark:border-gray-700/50">
+            <!-- Search Results Panel -->
+            <div id="search-results-panel" class="hidden fixed right-0 top-0 h-full w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl shadow-lg border-l border-gray-200/50 dark:border-gray-700/50 z-20">
+                <div class="flex flex-col h-full">
+                    <div class="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-700/50">
+                        <h3 class="text-sm font-medium text-gray-800 dark:text-white">Search Results</h3>
+                        <button id="close-search-panel" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors duration-200">
+                            <svg class="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="search-results-container" class="flex-1 overflow-y-auto p-4 space-y-3">
+                        <!-- Search results will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
             <div class="h-full flex flex-col p-6">
                 <!-- Conversations Section -->
                 <div class="flex-1 flex flex-col min-h-0">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-medium text-gray-700 dark:text-gray-300">Conversations</h3>
+                        <button id="conversations-toggle" class="flex items-center space-x-2 group">
+                            <h3 class="font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Conversations</h3>
+                            <svg id="conversations-chevron" class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
                         <button id="new-chat" class="p-1.5 rounded-lg bg-ms-blue/10 hover:bg-ms-blue/20 text-ms-blue dark:text-ms-teal transition-colors duration-200">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
                         </button>
                     </div>
-                    <div id="conversation-list" class="flex-1 overflow-y-auto space-y-2 pr-2 mb-4">
-                        <!-- Conversations will be added here dynamically -->
+                    <div id="conversations-container" class="flex-1 overflow-hidden transition-all duration-200 ease-in-out">
+                        <div class="overflow-y-auto -mx-6 px-6">
+                            <div id="conversation-list" class="space-y-2 pr-2 mb-4">
+                                <!-- Conversations will be added here dynamically -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -155,8 +178,8 @@
 
                         <!-- Max length control -->
                         <div class="space-y-2">
-                            <label for="max_length" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Max Length</label>
-                            <input type="range" id="max_length" min="100" max="4000" step="100" value="2000"
+                            <label for="max_tokens" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Max Tokens</label>
+                            <input type="range" id="max_tokens" min="100" max="4000" step="100" value="2000"
                                    class="w-full accent-blue-500 dark:accent-teal-400">
                             <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>Short</span>
@@ -175,6 +198,37 @@
                             </div>
                         </div>
 
+                        <!-- Frequency Penalty -->
+                        <div class="space-y-2">
+                            <label for="frequency_penalty" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Frequency Penalty</label>
+                            <input type="range" id="frequency_penalty" min="0" max="2" step="0.1" value="0"
+                                   class="w-full accent-blue-500 dark:accent-teal-400">
+                            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span>Allow Repetition</span>
+                                <span>Avoid Repetition</span>
+                            </div>
+                        </div>
+
+                        <!-- Presence Penalty -->
+                        <div class="space-y-2">
+                            <label for="presence_penalty" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Presence Penalty</label>
+                            <input type="range" id="presence_penalty" min="0" max="2" step="0.1" value="0"
+                                   class="w-full accent-blue-500 dark:accent-teal-400">
+                            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span>Stay Focused</span>
+                                <span>Explore Topics</span>
+                            </div>
+                        </div>
+
+                        <!-- Stop Sequences -->
+                        <div class="space-y-2">
+                            <label for="stop" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Stop Sequences</label>
+                            <input type="text" id="stop" value=""
+                                   placeholder="Enter stop sequences separated by commas"
+                                   class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:border-blue-500 dark:focus:border-teal-400">
+                        </div>
+
+
                         <!-- Number of images -->
                         <div class="space-y-2">
                             <label for="n" class="block text-xs font-medium text-gray-600 dark:text-gray-400">Number of Images</label>
@@ -186,13 +240,30 @@
             </div>
         </aside>
 
-        <!-- Main chat area -->
-        <main class="flex-1 flex flex-col bg-white/40 dark:bg-gray-900/40">
-            <div id="chat-history" class="flex-1 overflow-y-auto px-8 py-6 space-y-8 scroll-smooth relative">
+        <!-- Main content area -->
+        <main class="flex-1 flex bg-white/40 dark:bg-gray-900/40">
+            <!-- Search results panel -->
+            <div id="search-results-panel" class="hidden w-80 border-r border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg overflow-y-auto">
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Search Results</h3>
+                        <button id="close-search-panel" class="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="search-results-container" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Chat area -->
+            <div class="flex-1 flex flex-col">
+                <div id="chat-history" class="flex-1 overflow-y-auto px-8 py-6 space-y-8 scroll-smooth relative">
                 <!-- Welcome state for empty conversation -->
                 <div id="welcome-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 space-y-8">
                     <div class="text-center space-y-2">
-                        <h2 class="text-2xl font-medium text-gray-800 dark:text-white">Welcome to InternalGPT</h2>
+                        <h2 class="text-2xl font-medium text-gray-800 dark:text-white">Welcome to PrivateGPT</h2>
                         <p class="text-gray-600 dark:text-gray-400">Your secure AI assistant with chat and image generation capabilities</p>
                     </div>
                     
@@ -226,20 +297,28 @@
                         <div class="flex-1 relative">
                             <textarea id="message" 
                                       class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl py-2.5 px-4 resize-none focus:outline-none focus:border-blue-500 dark:focus:border-teal-400 transition-all duration-200 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500"
-                                      placeholder="Message InternalGPT..." 
+                                      placeholder="Message PrivateGPT..." 
                                       rows="1"
                                       style="min-height: 44px; max-height: 200px;"></textarea>
                             <div class="absolute right-3 bottom-2.5 flex items-center space-x-1">
-                                <button class="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200" title="Upload image">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                </button>
-                                <button class="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200" title="Add emoji">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                </button>
+                                <div class="relative flex items-center space-x-2">
+                                    <!-- Web search toggle -->
+                                    <button id="searchToggle" class="p-2 rounded-lg hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors duration-200" title="Toggle web search">
+                                        <span id="searchIcon" class="text-xl">🔍</span>
+                                    </button>
+                                    <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
+                                    <button type="button" id="pdf-upload-btn" onclick="document.getElementById('pdf-upload').click()" class="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-all duration-200" title="Upload PDF for context">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                    </button>
+                                    <div id="pdf-status" class="absolute bottom-full right-0 mb-2 text-xs bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg shadow-lg p-2 min-w-[200px] hidden">
+                                        <div class="flex items-center justify-between space-x-2">
+                                            <span class="pdf-status-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                             </div>
                         </div>
                         <button id="send" 
@@ -559,12 +638,89 @@
             welcomeState.style.display = 'none';
         }
 
+        // Toggle conversations section
+        const conversationsToggle = document.getElementById('conversations-toggle');
+        const conversationsContainer = document.getElementById('conversations-container');
+        const conversationsChevron = document.getElementById('conversations-chevron');
+        let isConversationsExpanded = true;
+
+        function toggleConversations(e) {
+            e.stopPropagation(); // Prevent event from bubbling to parent elements
+            isConversationsExpanded = !isConversationsExpanded;
+            if (isConversationsExpanded) {
+                conversationsContainer.style.maxHeight = conversationsContainer.scrollHeight + 'px';
+                conversationsChevron.classList.remove('rotate-180');
+                // Store after transition to avoid height constraint
+                setTimeout(() => {
+                    conversationsContainer.style.maxHeight = '';
+                }, 200);
+            } else {
+                // Set actual height before collapsing
+                conversationsContainer.style.maxHeight = conversationsContainer.scrollHeight + 'px';
+                setTimeout(() => {
+                    conversationsContainer.style.maxHeight = '0px';
+                }, 0);
+                conversationsChevron.classList.add('rotate-180');
+            }
+        }
+
+        conversationsToggle.addEventListener('click', toggleConversations);
+
         // Initialize welcome state
         document.addEventListener('DOMContentLoaded', () => {
             if (!currentConversationId) {
                 showWelcomeState();
             }
+            
+            // Initialize search functionality
+            const searchToggle = document.getElementById('searchToggle');
+            const searchIcon = document.getElementById('searchIcon');
+            
+            searchToggle.addEventListener('click', function() {
+                searchEnabled = !searchEnabled;
+                if (searchEnabled) {
+                    searchIcon.textContent = '🌐';
+                    searchIcon.classList.add('text-blue-500', 'dark:text-teal-400');
+                } else {
+                    searchIcon.textContent = '🔍';
+                    searchIcon.classList.remove('text-blue-500', 'dark:text-teal-400');
+                }
+            });
+
+
+            // Function to display search results
+            function displaySearchResults(results) {
+                const container = document.getElementById('search-results-container');
+                container.innerHTML = '';
+                
+                if (!results || results.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 text-center">No search results found</p>';
+                    return;
+                }
+                
+                results.forEach(result => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200';
+                    
+                    const title = document.createElement('a');
+                    title.href = result.url;
+                    title.target = '_blank';
+                    title.className = 'text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline block mb-1';
+                    title.textContent = result.title;
+                    
+                    const snippet = document.createElement('p');
+                    snippet.className = 'text-xs text-gray-600 dark:text-gray-300';
+                    snippet.textContent = result.snippet;
+                    
+                    resultElement.appendChild(title);
+                    resultElement.appendChild(snippet);
+                    container.appendChild(resultElement);
+                });
+            }
         });
+
+        // Initialize search state
+        let searchEnabled = false;
 
         // Chat functionality
         document.getElementById('send').addEventListener('click', sendMessage);
@@ -654,7 +810,7 @@
             });
         });
 
-        function addMessage(content, sender, isImage = false, messageId = null) {
+        function addMessage(content, sender, isImage = false, messageId = null, isPdfAttachment = false) {
             hideWelcomeState();
             const chatHistory = document.getElementById('chat-history');
             const messageDiv = document.createElement('div');
@@ -725,6 +881,16 @@
                     });
                     bubbleWrapper.appendChild(copyButton);
                 }
+            } else if (isPdfAttachment) {
+                const attachmentDiv = document.createElement('div');
+                attachmentDiv.className = 'inline-flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2';
+                attachmentDiv.innerHTML = `
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">${content}</span>
+                `;
+                bubble.appendChild(attachmentDiv);
             } else {
                 bubble.textContent = content;
             }
@@ -741,9 +907,21 @@
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'flex justify-start mb-4';
             loadingDiv.innerHTML = `
-                <div class="max-w-3xl rounded-xl px-5 py-3 bg-white dark:bg-gray-800 shadow-lg animate-pulse border border-gray-100 dark:border-gray-700">
-                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mt-2"></div>
+                <div class="max-w-3xl rounded-xl px-5 py-4 bg-white dark:bg-gray-800 shadow-lg border border-gray-100 dark:border-gray-700">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-blue-500 dark:bg-teal-500 flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+                            <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
+                        </div>
+                    </div>
                 </div>
             `;
             document.getElementById('chat-history').appendChild(loadingDiv);
@@ -758,36 +936,312 @@
                 presence_penalty: document.getElementById('presence_penalty').value,
                 max_tokens: document.getElementById('max_tokens').value,
                 stop: document.getElementById('stop').value,
-                n: document.getElementById('n').value
+                n: document.getElementById('n').value,
+                enable_search: searchEnabled
             });
 
             const eventSource = new EventSource(`/chat?${params}`);
             let currentResponse = '';
-            
+            let messageElement = null;
+
+            // Handle image generation commands separately
+            if (message.startsWith('/imagine')) {
+                const imageEventSource = new EventSource(`/generate-image?${new URLSearchParams({
+                    prompt: message.substring(8).trim(),
+                    conversation_id: currentConversationId
+                })}`);
+
+                imageEventSource.onmessage = function(event) {
+                    try {
+                        if (event.data === '[DONE]') {
+                            imageEventSource.close();
+                            if (loadingDiv && loadingDiv.parentNode) {
+                                loadingDiv.remove();
+                            }
+                            return;
+                        }
+
+                        const jsonStr = event.data.replace(/^data: /, '');
+                        const data = JSON.parse(jsonStr);
+                        console.log('Received image data:', data);
+
+                        if (data.type === 'image' && data.success) {
+                            // Show generated image
+                            const imageMessage = document.createElement('div');
+                            imageMessage.className = 'flex justify-start mb-4';
+                            imageMessage.innerHTML = `
+                                <div class="flex-1 max-w-3xl">
+                                    <div class="rounded-2xl p-2 shadow-lg bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700">
+                                        <img src="${data.image_path}" alt="Generated image" class="rounded-lg max-w-lg w-full h-auto" />
+                                    </div>
+                                </div>`;
+                            document.getElementById('chat-history').appendChild(imageMessage);
+                        } else if (data.error) {
+                            console.error('Image generation error:', data.error);
+                        }
+                    } catch (e) {
+                        console.error('Error handling image event:', e);
+                        console.log('Raw event data:', event.data);
+                    }
+                };
+
+                imageEventSource.onerror = function(error) {
+                    console.error('Image EventSource error:', error);
+                    imageEventSource.close();
+                    if (loadingDiv && loadingDiv.parentNode) {
+                        loadingDiv.remove();
+                    }
+                };
+
+                return;
+            }
+
+            // Configure marked options for better rendering
+            marked.setOptions({
+                gfm: true, // GitHub Flavored Markdown
+                breaks: true, // Add <br> on single line breaks
+                headerIds: true, // Add IDs to headers
+                mangle: false, // Don't escape HTML
+                pedantic: false, // Don't be too strict with markdown spec
+                smartLists: true, // Use smarter list behavior
+                smartypants: true, // Use smart punctuation
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) {}
+                    }
+                    return code;
+                }
+            });
+
             eventSource.onmessage = function(event) {
                 if (event.data === '[DONE]') {
-                    eventSource.close();
-                    loadingDiv.remove();
-                    // Add the final message when stream is complete
-                    addMessage(currentResponse, 'assistant');
+                    if (loadingDiv && loadingDiv.parentNode) {
+                        loadingDiv.remove();
+                    }
                     return;
                 }
 
-                const data = JSON.parse(event.data);
-                if (data.title) {
+                let data;
+                try {
+                    // Extract the JSON data after 'data: '
+                    const jsonStr = event.data.replace(/^data: /, '');
+                    data = JSON.parse(jsonStr);
+                    console.log('Received SSE data:', data);
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                    console.log('Raw SSE data:', event.data);
+                    return;
+                }
+                if (data.type === 'image_prompt') {
+                    console.log('Showing image prompt:', data.rewritten);
+                    // Show rewritten prompt
+                    const promptMessage = document.createElement('div');
+                    promptMessage.className = 'flex justify-start mb-4';
+                    promptMessage.innerHTML = `
+                        <div class="flex-1 max-w-3xl">
+                            <div class="rounded-2xl px-6 py-4 shadow-lg bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700">
+                                <div class="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-sm text-purple-600 dark:text-purple-400">🎨 Rewritten for better image generation:</span>
+                                        <button class="copy-prompt-button p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="text-sm bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">${data.rewritten}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('chat-history').appendChild(promptMessage);
+                    
+                    // Add copy functionality for the prompt
+                    const copyButton = promptMessage.querySelector('.copy-prompt-button');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', function() {
+                            navigator.clipboard.writeText(data.rewritten).then(() => {
+                                this.innerHTML = `
+                                    <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                `;
+                                setTimeout(() => {
+                                    this.innerHTML = `
+                                        <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                        </svg>
+                                    `;
+                                }, 2000);
+                            });
+                        });
+                    }
+                } else if (data.type === 'search_results') {
+                    // Add search results as a message
+                    const searchMessage = document.createElement('div');
+                    searchMessage.className = 'flex justify-start mb-4';
+                    searchMessage.innerHTML = `
+                        <div class="flex-1 max-w-3xl">
+                            <div class="rounded-2xl px-6 py-4 shadow-lg bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700">
+                                <div class="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none">
+                                    <details class="mb-2">
+                                        <summary class="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">
+                                            🔍 Web Search Results (${data.results.length})
+                                        </summary>
+                                        <div class="mt-2 space-y-3">
+                                            ${data.results.map(result => `
+                                                <div class="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                                                    <div class="font-medium">${result.title}</div>
+                                                    <div class="text-sm text-gray-600 dark:text-gray-300">${result.snippet}</div>
+                                                    <a href="${result.url}" target="_blank" class="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">${result.url}</a>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('chat-history').appendChild(searchMessage);
+                } else if (data.title) {
                     // Update conversation list when title is generated
                     loadConversations();
-                }
-                if (data.response) {
-                    currentResponse += data.response;
-                    // Update the temporary message during streaming
-                    const tempBubble = document.createElement('div');
-                    tempBubble.className = 'max-w-3xl rounded-2xl px-6 py-4 shadow-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700';
-                    tempBubble.innerHTML = marked.parse(currentResponse);
-                    if (loadingDiv.firstChild) {
-                        loadingDiv.firstChild.replaceWith(tempBubble);
+                } else if (data.type === 'image') {
+                    if (data.success && data.image_path) {
+                        const imageMessage = document.createElement('div');
+                        imageMessage.className = 'flex justify-start mb-4';
+                        imageMessage.innerHTML = `
+                            <div class="flex-1 max-w-3xl">
+                                <div class="rounded-2xl p-2 shadow-lg bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700">
+                                    <img src="${data.image_path}" alt="Generated image" class="rounded-lg max-w-lg w-full h-auto" />
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('chat-history').appendChild(imageMessage);
                     } else {
-                        loadingDiv.appendChild(tempBubble);
+                        console.error('Image generation failed:', data.error);
+                    }
+                } else if (data.type === 'response') {
+                    if (currentResponse === '') {
+                        // Remove loading animation and create message container
+                        loadingDiv.remove();
+                        messageElement = document.createElement('div');
+                        messageElement.setAttribute('data-message-id', 'temp-message');
+                        messageElement.className = 'flex justify-start mb-4';
+                        messageElement.innerHTML = `
+                            <div class="flex-1 max-w-3xl">
+                                <div class="rounded-2xl px-6 py-4 shadow-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">AI Response</div>
+                                        <button class="copy-button p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                            <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none
+                                        prose-headings:font-semibold prose-headings:text-gray-800 dark:prose-headings:text-gray-200
+                                        prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
+                                        prose-p:text-gray-600 dark:prose-p:text-gray-300
+                                        prose-pre:bg-gray-100 dark:prose-pre:bg-gray-900
+                                        prose-code:text-blue-600 dark:prose-code:text-blue-400
+                                        prose-code:before:content-none prose-code:after:content-none
+                                        prose-strong:text-gray-900 dark:prose-strong:text-white
+                                        prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-800 dark:hover:prose-a:text-blue-300
+                                        prose-li:marker:text-gray-400 dark:prose-li:marker:text-gray-500"></div>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('chat-history').appendChild(messageElement);
+                        currentResponse = data.content;
+                    } else {
+                        currentResponse += data.content;
+                    }
+                    
+                    // Add copy functionality
+                    const copyButton = messageElement.querySelector('.copy-button');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', function() {
+                            const textToCopy = currentResponse;
+                            navigator.clipboard.writeText(textToCopy).then(() => {
+                                // Change icon to checkmark temporarily
+                                this.innerHTML = `
+                                    <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                `;
+                                setTimeout(() => {
+                                    this.innerHTML = `
+                                        <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                        </svg>
+                                    `;
+                                }, 2000);
+                            });
+                        });
+                    }
+                    
+                    // Update message content
+                    const contentDiv = messageElement.querySelector('.prose');
+                    if (contentDiv) {
+                        contentDiv.innerHTML = marked.parse(currentResponse);
+                        // Re-run syntax highlighting
+                        messageElement.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                        
+                        // Make follow-up questions clickable if they exist
+                        const followupSection = Array.from(contentDiv.querySelectorAll('strong')).find(el => el.textContent === 'Follow-up Questions:');
+                        if (followupSection) {
+                            const questions = contentDiv.querySelectorAll('li');
+                            questions.forEach(li => {
+                                li.style.cursor = 'pointer';
+                                li.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700', 'p-1', 'rounded', 'transition-colors', 'duration-200');
+                                li.addEventListener('click', function() {
+                                    const input = document.getElementById('message-input');
+                                    input.value = this.textContent.trim();
+                                    input.focus();
+                                });
+                            });
+                        }
+                    }
+                }
+                if (data.type === 'followup_questions' && Array.isArray(data.questions) && data.questions.length > 0) {
+                    // Create a container for follow-up questions
+                    const followupContainer = document.createElement('div');
+                    followupContainer.className = 'flex flex-wrap gap-2 mt-4';
+                    
+                    // Add a label for follow-up questions
+                    const label = document.createElement('div');
+                    label.className = 'w-full text-sm text-gray-500 dark:text-gray-400 mb-2';
+                    label.textContent = 'Follow-up questions:';
+                    followupContainer.appendChild(label);
+                    
+                    // Add each follow-up question as a bubble
+                    data.questions.forEach((question, index) => {
+                        const bubble = document.createElement('button');
+                        bubble.className = 'px-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 cursor-pointer flex-grow-0';
+                        bubble.title = question;  // Show full question on hover
+                        bubble.textContent = question;
+                        
+                        bubble.addEventListener('click', async function() {
+                            const question = this.textContent;
+                            document.getElementById('message').value = question;
+                            document.getElementById('message').focus();
+                            // Add user message to chat
+                            addMessage(question, 'user');
+                            // Get AI response
+                            await getAIResponse(question);
+                        });
+                        
+                        followupContainer.appendChild(bubble);
+                    });
+                    
+                    // Add the follow-up container after the message
+                    if (messageElement && messageElement.querySelector('.flex-1')) {
+                        messageElement.querySelector('.flex-1').appendChild(followupContainer);
                     }
                 }
                 if (data.error) {
@@ -798,17 +1252,94 @@
                 }
             };
 
+            let hasError = false;
+            
             eventSource.onerror = function(error) {
+                if (hasError) return; // Prevent multiple error messages
+                hasError = true;
                 console.error('EventSource failed:', error);
-                loadingDiv.remove();
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.remove();
+                }
                 eventSource.close();
-                addMessage('Error: Connection closed unexpectedly', 'assistant');
+                // Only show error message if we haven't received any response yet
+                if (!messageElement || currentResponse === '') {
+                    addMessage('Error: Connection closed unexpectedly. Please try again.', 'assistant');
+                }
             };
         }
 
 
         
-        // Send message on Enter (but allow Shift+Enter for new lines)
+        // Handle PDF upload
+        const pdfUpload = document.getElementById('pdf-upload');
+        const pdfStatus = document.getElementById('pdf-status');
+        let statusTimeout;
+
+        pdfUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            const statusText = pdfStatus.querySelector('.pdf-status-text');
+            statusText.textContent = 'Uploading and processing PDF...';
+            pdfStatus.classList.remove('hidden');
+            pdfStatus.classList.remove('text-red-500');
+
+            try {
+                const response = await fetch('/upload-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const statusText = pdfStatus.querySelector('.pdf-status-text');
+                    statusText.textContent = `PDF uploaded successfully`;
+                    updatePdfButtonState(true);
+                    
+                    // Add PDF attachment to chat
+                    addMessage(`📎 Uploaded PDF: ${data.filename}`, 'user', false, null, true);
+
+                    // Auto-hide status message after 2 seconds
+                    clearTimeout(statusTimeout);
+                    statusTimeout = setTimeout(() => {
+                        pdfStatus.classList.add('hidden');
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Failed to process PDF');
+                }
+            } catch (error) {
+                const statusText = pdfStatus.querySelector('.pdf-status-text');
+                statusText.textContent = `Error: ${error.message}`;
+                pdfStatus.classList.add('text-red-500');
+
+                // Auto-hide error message after 2 seconds
+                clearTimeout(statusTimeout);
+                statusTimeout = setTimeout(() => {
+                    pdfStatus.classList.add('hidden');
+                }, 2000);
+            }
+        });
+
+        const pdfUploadBtn = document.getElementById('pdf-upload-btn');
+
+        function updatePdfButtonState(isUploaded) {
+            if (isUploaded) {
+                pdfUploadBtn.classList.remove('text-gray-400', 'hover:text-gray-600', 'dark:text-gray-500', 'dark:hover:text-gray-300');
+                pdfUploadBtn.classList.add('text-red-500', 'hover:text-red-600', 'dark:text-red-400', 'dark:hover:text-red-300');
+            } else {
+                pdfUploadBtn.classList.remove('text-red-500', 'hover:text-red-600', 'dark:text-red-400', 'dark:hover:text-red-300');
+                pdfUploadBtn.classList.add('text-gray-400', 'hover:text-gray-600', 'dark:text-gray-500', 'dark:hover:text-gray-300');
+            }
+        }
+
+
+
+        // Handle keyboard shortcuts for the textarea
         textarea.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
