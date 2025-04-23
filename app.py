@@ -33,6 +33,7 @@ def login_required(f):
     return decorated_function
 
 # Configuration - should be moved to environment variables in production
+#changes<
 AZURE_CONFIG = {
     "api_version": "2023-12-01-preview",
     "azure_endpoint": "https://joinal-openai.openai.azure.com",
@@ -46,6 +47,8 @@ DOCUMENT_INTELLIGENCE_KEY = "E8buNGR5N7u4z1hYX0GduDumQExHqOCHK3MdGN8EsVjgKQHpbOP
 # Bing Search configuration
 BING_SEARCH_KEY = "83eb5b0e0e4142d4a26b500f908b84a9"
 BING_SEARCH_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search"
+
+#changes/>
 
 def rewrite_image_prompt(query):
     """Rewrite a user query to be more suitable for image generation"""
@@ -121,6 +124,7 @@ if not os.path.isdir(image_dir):
     os.makedirs(image_dir)
 
 # Available models
+#changes</>
 MODELS = [
     {"id": "gpt-4o", "name": "GPT-4o"},
     {"id": "gpt-4o-mini", "name": "GPT-4o-Mini"}
