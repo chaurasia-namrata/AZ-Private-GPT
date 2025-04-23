@@ -307,6 +307,7 @@ def generate_image():
         return jsonify({'error': 'Conversation not found'}), 404
     
     # Generate image using DALL-E
+    #changes</>
     result = client.images.generate(
         model="dall-e-3",
         prompt=prompt,
