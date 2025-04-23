@@ -4,3 +4,4 @@ python-dotenv
 azure-cognitiveservices-search-websearch
 azure-core
 msrest
+azure-ai-formrecognizer
