@@ -10,6 +10,11 @@ import json
 import os
 import uuid
 import bcrypt
+from concurrent.futures import ThreadPoolExecutor
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For session management
@@ -33,28 +38,29 @@ def login_required(f):
     return decorated_function
 
 # Configuration - should be moved to environment variables in production
-#changes<
 AZURE_CONFIG = {
-    "api_version": "2023-12-01-preview",
-    "azure_endpoint": "https://joinal-openai.openai.azure.com",
-    "api_key": "CPaU2y68J2xCFFh3wWx9PHmO9ORuSxdU9zMtcBAzLmmJex6vyPGnJQQJ99AKACYeBjFXJ3w3AAABACOGnRFh"
+    "api_version": os.getenv("API_VERSION"),
+    "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
+    "api_key": os.getenv("AZURE_OPENAI_KEY")
 }
 
 # Azure Document Intelligence configuration
-DOCUMENT_INTELLIGENCE_ENDPOINT = "https://doc-intel-joinal.cognitiveservices.azure.com/"
-DOCUMENT_INTELLIGENCE_KEY = "E8buNGR5N7u4z1hYX0GduDumQExHqOCHK3MdGN8EsVjgKQHpbOPMJQQJ99ALACYeBjFXJ3w3AAALACOG92Bc"
+DOCUMENT_INTELLIGENCE_ENDPOINT = os.getenv("AZURE_FORM_RECOGNIZER_ENDPOINT")
+DOCUMENT_INTELLIGENCE_KEY = os.getenv("AZURE_FORM_RECOGNIZER_KEY")
+
+
+
 
 # Bing Search configuration
-BING_SEARCH_KEY = "83eb5b0e0e4142d4a26b500f908b84a9"
+BING_SEARCH_KEY = os.getenv("BING_SEARCH_KEY")
 BING_SEARCH_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search"
-
-#changes/>
 
 def rewrite_image_prompt(query):
     """Rewrite a user query to be more suitable for image generation"""
     try:
         completion = client.chat.completions.create(
-            model="gpt-4",
+            #model=os.getenv("MODEL_NAME"),
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert at writing image generation prompts. Your task is to rewrite user queries into detailed, descriptive prompts that will produce better image results. Focus on visual details, style, mood, and technical aspects. Keep the response ONLY to the rewritten prompt, no explanations.\n\nExample:\nUser: 'cat in garden'\nYou: 'A charming tabby cat lounging in a sun-dappled English garden, surrounded by blooming roses and lavender, soft bokeh effect, golden hour lighting, 4K detailed photography'"},
                 {"role": "user", "content": query}
@@ -67,7 +73,20 @@ def rewrite_image_prompt(query):
         app.logger.error(f'Error rewriting image prompt: {str(e)}')
         return query
 
-def perform_bing_search(query, count=3):
+def fetch_url_content(url):
+    """Fetch the content of a URL."""
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        return ' '.join([p.get_text() for p in soup.find_all('p')])[:200000]
+        
+    except requests.RequestException as e:
+        #print(f"Failed to fetch URL {url}: {e}")
+        return None
+    
+
+def perform_bing_search(query, count=5):
     if not BING_SEARCH_KEY or not BING_SEARCH_ENDPOINT:
         return []
     
@@ -76,11 +95,10 @@ def perform_bing_search(query, count=3):
         headers = {
             'Ocp-Apim-Subscription-Key': BING_SEARCH_KEY
         }
-        
+                
         params = {
             'q': query,
             'count': count,
-            'mkt': 'en-US'
         }
         
         # Make the API call
@@ -90,22 +108,45 @@ def perform_bing_search(query, count=3):
             params=params
         )
         response.raise_for_status()
+        search_results = response.json()
         
-        # Parse the results
-        search_data = response.json()
-        print(search_data)
-        results = []
-        
-        # Add web pages
-        if 'webPages' in search_data and 'value' in search_data['webPages']:
-            for page in search_data['webPages']['value'][:count]:
-                results.append({
-                    'title': page['name'],
-                    'snippet': page['snippet'],
-                    'url': page['url']
+        output = []
+        urls = []
+
+        for result in search_results.get('webPages', {}).get('value', []):
+            output.append({
+                'title': result['name'],
+                'url': result['url'],
+                'snippet': result['snippet']
+            })
+            urls.append(result['url'])
+
+        # Fetch content from URLs in parallel
+        url_contents = {}
+        with ThreadPoolExecutor() as executor:
+            future_to_url = {executor.submit(fetch_url_content, url): url for url in urls}
+            for future in future_to_url:
+                url = future_to_url[future]
+                content = future.result()
+                if content:
+                    url_contents[url] = content
+
+        # Add the fetched content to the output
+        for item in output:
+            item['content'] = url_contents.get(item['url'], "")
+
+        # Form a response using the fetched content
+        response_summary = []
+        for item in output:
+            if item['content']!="":
+                response_summary.append({
+                "title": item['title'],
+                "url": item['url'],
+                "content_snippet": item['content'],  
+                'snippet': item['snippet']
                 })
-        
-        return results
+
+        return response_summary
     except Exception as e:
         app.logger.error(f'Bing search error: {str(e)}')
         return []
@@ -124,7 +165,6 @@ if not os.path.isdir(image_dir):
     os.makedirs(image_dir)
 
 # Available models
-#changes</>
 MODELS = [
     {"id": "gpt-4o", "name": "GPT-4o"},
     {"id": "gpt-4o-mini", "name": "GPT-4o-Mini"}
@@ -134,6 +174,7 @@ MODELS = [
 @app.before_request
 def start_timer():
     request.start_time = datetime.now()
+    print(f"Request started at {request.start_time}")
 
 @app.after_request
 def add_headers(response):
@@ -260,6 +301,11 @@ def index():
         return redirect(url_for('login'))
     return render_template('index.html', models=MODELS, user=user)
 
+#@app.route('/')
+#def index():
+#   print('Request for index page received')
+#   return render_template('index2.html')
+
 @app.route('/conversations', methods=['GET', 'POST'])
 @handle_errors
 def manage_conversations():
@@ -307,7 +353,6 @@ def generate_image():
         return jsonify({'error': 'Conversation not found'}), 404
     
     # Generate image using DALL-E
-    #changes</>
     result = client.images.generate(
         model="dall-e-3",
         prompt=prompt,
@@ -396,6 +441,16 @@ def chat():
             
             # Prepare messages list
             chat_messages = []
+            search_results = None
+
+            # Add conversation history
+            chat_messages.extend(messages)
+
+
+            # Add user message to history
+            user_message = {"role": "user", "content": f"{params['message']}\n\nPlease respond using well-formatted markdown."}
+            messages.append({"role": "user", "content": params['message']})
+            chat_messages.append(user_message)
             
             # Add PDF context if available
             if pdf_context:
@@ -410,9 +465,18 @@ def chat():
                         yield f"data: {json.dumps({'type': 'search_results', 'results': search_results})}\n\n"
                         
                         # Add search context to chat
-                        search_context = "I found the following web search results that might be relevant to the user's query. Please use this information to help provide a more accurate and up-to-date response:\n\n"
+                        search_context = f"""
+                        Assistant helps user with their questions. 
+                        Be brief in your answers.
+                        Answer ONLY with the facts listed in the list of sources below which contains the latest results from a search query. 
+                        If there isn't enough information below, say you don't know. 
+                        Do not generate answers that don't use the sources beloww.
+                        The sources have the following format url:title:content.
+                        Do not output sources.
+                        """
+                        search_context += f"""Sources:\n\n"""
                         for result in search_results:
-                            search_context += f"- {result['title']}\n{result['snippet']}\nSource: {result['url']}\n\n"
+                            search_context += f"""{result['url']}:{result['title']}:{result['content_snippet']}\n"""
                         chat_messages.append({"role": "system", "content": search_context})
                 except Exception as e:
                     app.logger.error(f"Error in web search: {str(e)}")
@@ -430,13 +494,9 @@ def chat():
                     # Update the message with the rewritten prompt
                     params['message'] = rewritten_prompt
             
-            # Add conversation history
-            chat_messages.extend(messages)
             
-            # Add user message to history
-            user_message = {"role": "user", "content": f"{params['message']}\n\nPlease respond using well-formatted markdown."}
-            messages.append({"role": "user", "content": params['message']})
-            chat_messages.append(user_message)
+            
+            
             
             # Generate response using OpenAI
             try:
@@ -458,17 +518,18 @@ def chat():
                     yield f"data: {json.dumps({'title': conversation['title']})}\n\n"
 
                 # Perform Bing search if enabled
-                search_results = []
-                if params.get('enable_search') and 'search' not in messages[0]['role']:
-                    search_results = perform_bing_search(user_message)
-                    if search_results:
-                        search_context = 'Here are some relevant search results:\n'
-                        for result in search_results:
-                            search_context += f"- {result['title']}\n  {result['snippet']}\n  Source: {result['url']}\n\n"
-                        messages.insert(1, {
-                            'role': 'system',
-                            'content': search_context
-                        })
+                #search_results = []
+                #if params.get('enable_search') and 'search' not in messages[0]['role']:
+                #    print(f"2nd search")
+                #    search_results = perform_bing_search(user_message)
+                #    if search_results:
+                #        search_context = 'Here are some relevant search results:\n'
+                #        for result in search_results:
+                #            search_context += f"- {result['title']}\n  {result['snippet']}\n  Source: {result['url']}\n\n"
+                #        messages.insert(1, {
+                #            'role': 'system',
+                #            'content': search_context
+                #        })
 
                 # Generate response
                 stream = client.chat.completions.create(
@@ -491,7 +552,7 @@ def chat():
                         assistant_message += content
                         yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
                 
-                # Add assistant message to history
+                
                 messages.append({"role": "assistant", "content": assistant_message})
 
                 try:
@@ -520,8 +581,8 @@ def chat():
                             q = q[q.find(' ')+1:].lstrip('.-) ')
                             questions.append(q)
                     if questions:  # Only send if we have questions
-                        yield f"data: {json.dumps({'type': 'response', 'content': '\n\n'})}\n\n"  # Add spacing
-                        yield f"data: {json.dumps({'type': 'followup_questions', 'questions': questions})}\n\n"
+                        yield f"data: {json.dumps({'type': 'response', 'content': ''})}"
+                        yield fr"data: {json.dumps({'type': 'followup_questions', 'questions': questions})}\n\n"
                 except Exception as e:
                     app.logger.error(f"Error generating follow-up questions: {str(e)}")
                     # Skip follow-up questions on error

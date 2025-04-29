@@ -6,3 +6,4 @@ azure-core
 msrest
 azure-ai-formrecognizer
 bcrypt
+bs4
