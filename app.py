@@ -9,12 +9,26 @@ from functools import wraps
 import json
 import os
 import uuid
-import bcrypt
 from concurrent.futures import ThreadPoolExecutor
 from bs4 import BeautifulSoup
+
+
+from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import AgentStreamEvent, RunStepDeltaChunk
+from azure.ai.projects.models import (
+    MessageDeltaChunk,
+    RunStep,
+    ThreadMessage,
+    ThreadRun,
+    MessageRole,
+    MessageDeltaTextContent,
+    MessageDeltaTextUrlCitationAnnotation,
+)
+from azure.identity import DefaultAzureCredential
+
+
 from dotenv import load_dotenv
 load_dotenv(override=True)
-
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For session management
@@ -25,6 +39,9 @@ users = {}
 
 # Store extracted PDF text
 pdf_contexts = {}
+
+
+
 
 # Login required decorator
 def login_required(f):
@@ -44,16 +61,20 @@ AZURE_CONFIG = {
     "api_key": os.getenv("AZURE_OPENAI_KEY")
 }
 
+
 # Azure Document Intelligence configuration
 DOCUMENT_INTELLIGENCE_ENDPOINT = os.getenv("AZURE_FORM_RECOGNIZER_ENDPOINT")
 DOCUMENT_INTELLIGENCE_KEY = os.getenv("AZURE_FORM_RECOGNIZER_KEY")
 
 
-
-
 # Bing Search configuration
 BING_SEARCH_KEY = os.getenv("BING_SEARCH_KEY")
 BING_SEARCH_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search"
+
+project_client = AIProjectClient.from_connection_string(
+    credential=DefaultAzureCredential(),
+    conn_str=os.getenv("AZURE_AI_FOUNDRY_CONN_STR"),
+)
 
 def rewrite_image_prompt(query):
     """Rewrite a user query to be more suitable for image generation"""
@@ -222,6 +243,7 @@ def login_page():
     user = verify_user(email, password)
     if user:
         session['user'] = email
+        print(f"User {session.get('user')} logged in successfully")
         if request.is_json:
             return jsonify({'success': True})
         return redirect(url_for('index'))
@@ -309,34 +331,47 @@ def index():
 @app.route('/conversations', methods=['GET', 'POST'])
 @handle_errors
 def manage_conversations():
+    user = session.get('user')
     if request.method == 'POST':
         # Create new conversation
         conv_id = str(uuid.uuid4())
-        conversations[conv_id] = {
+        new_conversation = {
             'id': conv_id,
-            'title': None,  # Will be generated after first message
+            'title': None,  # Will be generated after the first message
             'messages': [],
             'created_at': datetime.now().isoformat()
         }
-        return jsonify(conversations[conv_id])
+        # Add the conversation to the user's list
+        if user not in conversations:
+            conversations[user] = {}
+        conversations[user][conv_id]=new_conversation
+
+        return jsonify(new_conversation)
     else:
         # Get all conversations sorted by creation time
-        sorted_convs = sorted(conversations.values(), 
-                             key=lambda x: x['created_at'], 
-                             reverse=True)
+        user_conversations = conversations.get(user, {})
+        sorted_convs = sorted(user_conversations.values(), key=lambda x: x['created_at'], reverse=True)
         return jsonify(sorted_convs)
 
 @app.route('/conversations/<conv_id>', methods=['GET', 'DELETE'])
 @handle_errors
 def conversation(conv_id):
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'User not authenticated'}), 401
+
+    user_conversations = conversations.get(user, {})
     if request.method == 'DELETE':
-        if conv_id in conversations:
-            del conversations[conv_id]
+        # Delete the conversation
+        if conv_id in user_conversations:
+            del user_conversations[conv_id]
             return jsonify({'status': 'success'})
         return jsonify({'error': 'Conversation not found'}), 404
     else:
-        if conv_id in conversations:
-            return jsonify(conversations[conv_id])
+        # Retrieve the conversation
+        conversation = user_conversations.get(conv_id)
+        if conversation:
+            return jsonify(conversation)
         return jsonify({'error': 'Conversation not found'}), 404
 
 @app.route('/generate-image', methods=['POST'])
@@ -349,7 +384,11 @@ def generate_image():
     if not prompt or not conversation_id:
         return jsonify({'error': 'Missing prompt or conversation_id'}), 400
     
-    if conversation_id not in conversations:
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'User not authenticated'}), 401
+    user_conversations = conversations.get(user, {})
+    if conversation_id not in user_conversations:
         return jsonify({'error': 'Conversation not found'}), 404
     
     # Generate image using DALL-E
@@ -375,22 +414,23 @@ def generate_image():
     local_image_url = f'/static/images/{image_filename}'
     
     # Create or update conversation
-    if conversation_id not in conversations:
-        conversations[conversation_id] = {
+    if conversation_id not in user_conversations:
+        user_conversations[conversation_id] = {
             'id': conversation_id,
             'messages': [],
             'created_at': datetime.now().isoformat()
         }
     
     # Always update the title for image generation
-    conversations[conversation_id]['title'] = f'Image: {prompt[:30]}...' if len(prompt) > 30 else f'Image: {prompt}'
+    if user_conversations[conversation_id]['title'] is None:
+        user_conversations[conversation_id]['title'] = f'Image: {prompt[:30]}...' if len(prompt) > 30 else f'Image: {prompt}'
     
     # Add messages
-    conversations[conversation_id]['messages'].append({
+    user_conversations[conversation_id]['messages'].append({
         'role': 'user',
         'content': f'/imagine {prompt}'
     })
-    conversations[conversation_id]['messages'].append({
+    user_conversations[conversation_id]['messages'].append({
         'role': 'assistant',
         'content': local_image_url,
         'is_image': True
@@ -417,24 +457,33 @@ def chat():
             'presence_penalty': float(request.args.get('presence_penalty', 0)),
             'stop': request.args.get('stop'),
             'n': int(request.args.get('n', 1)),
-            'enable_search': request.args.get('enable_search') == 'true'
+            'enable_search': request.args.get('enable_search') == 'true',
+            'user': session.get('user')
         }
-        
         # Get session data
         pdf_context = session.get('pdf_context')
         pdf_filename = session.get('pdf_filename')
         
         def generate():
-            
             if not params['message']:
+                print("No message provided")
                 yield f"data: {json.dumps({'error': 'Message is required'})}\n\n"
                 return
-                
-            if not params['conversation_id'] or params['conversation_id'] not in conversations:
+            
+            if not params['user']:
+                print("User not authenticated")
+                yield f"data: {json.dumps({'error': 'User not authenticated'})}\n\n"
+                return
+            user_conversation = conversations.get(params['user'])
+
+
+            if not params['conversation_id'] or params['conversation_id'] not in user_conversation:
+                print("Invalid conversation ID")
                 yield f"data: {json.dumps({'error': 'Invalid conversation ID'})}\n\n"
                 return
-
-            conversation = conversations[params['conversation_id']]
+            
+            
+            conversation = user_conversation[params['conversation_id']]
             messages = conversation['messages']
             
             # Use PDF context if available
@@ -458,26 +507,76 @@ def chat():
             
             # Add web search results if enabled
             if params.get('enable_search'):
+                assistant_message=""
                 try:
-                    search_results = perform_bing_search(params['message'])
-                    if search_results:
-                        # Send search results to frontend
-                        yield f"data: {json.dumps({'type': 'search_results', 'results': search_results})}\n\n"
-                        
-                        # Add search context to chat
-                        search_context = f"""
-                        Assistant helps user with their questions. 
-                        Be brief in your answers.
-                        Answer ONLY with the facts listed in the list of sources below which contains the latest results from a search query. 
-                        If there isn't enough information below, say you don't know. 
-                        Do not generate answers that don't use the sources beloww.
-                        The sources have the following format url:title:content.
-                        Do not output sources.
-                        """
-                        search_context += f"""Sources:\n\n"""
-                        for result in search_results:
-                            search_context += f"""{result['url']}:{result['title']}:{result['content_snippet']}\n"""
-                        chat_messages.append({"role": "system", "content": search_context})
+                    project_client = AIProjectClient.from_connection_string(
+                        credential=DefaultAzureCredential(), conn_str=os.getenv("AZURE_AI_FOUNDRY_CONN_STR")
+                    )
+
+                    with project_client:
+                        agent = project_client.agents.get_agent(
+                            agent_id=os.getenv("AZURE_AGENT_ID"),
+                        )
+
+                        thread = project_client.agents.create_thread()
+
+                        message = project_client.agents.create_message(
+                            thread_id=thread.id, role=MessageRole.USER, content=f"""{params['message']}"""
+                        )
+
+                        with project_client.agents.create_stream(thread_id=thread.id, agent_id=agent.id) as stream:
+                            annotations_count = 0
+                            annotations = []
+                            for event_type, event_data, _ in stream:
+                                if isinstance(event_data, MessageDeltaChunk):
+                                    if event_data.delta.content and isinstance(event_data.delta.content[0], MessageDeltaTextContent):
+                                        delta_text_content = event_data.delta.content[0]
+                                        if delta_text_content.text and delta_text_content.text.annotations:
+                                            annotations_count+=1           
+                                            for delta_annotation in delta_text_content.text.annotations:
+                                                if isinstance(delta_annotation, MessageDeltaTextUrlCitationAnnotation):
+                                                    annotations.append({
+                                                            'title': f"""{delta_annotation.url_citation.title}""",
+                                                            'url': f"""{delta_annotation.url_citation.url}""",
+                                                            })
+                                        else:
+                                            content = event_data.text
+                                            assistant_message += content
+                                            yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
+                                    
+                                elif isinstance(event_data, RunStepDeltaChunk):
+                                    print(f"RunStepDeltaChunk received. ID: {event_data.id}.")
+
+                                elif isinstance(event_data, ThreadMessage):
+                                    print(f"ThreadMessage created. ID: {event_data.id}, Status: {event_data.status}")
+
+                                elif isinstance(event_data, ThreadRun):
+                                    print(f"ThreadRun status: {event_data.status}")
+
+                                    if event_data.status == "failed":
+                                        print(f"Run failed. Error: {event_data.last_error}")
+
+                                elif isinstance(event_data, RunStep):
+                                    print(f"RunStep type: {event_data.type}, Status: {event_data.status}")
+
+                                elif event_type == AgentStreamEvent.ERROR:
+                                    print(f"An error occurred. Data: {event_data}")
+
+                                elif event_type == AgentStreamEvent.DONE:
+                                    print("Stream completed.")
+                                    footnotes = ""
+                                    footnote_counter = 1
+                                    f_response=""
+                                    for i in annotations:
+                                        footnotes += f"""{footnote_counter}. <a href="{i['url']}" target="_blank">{i['title']}</a><br/>"""
+                                        footnote_counter += 1
+                                    f_response = f"""<br/><div class="text-xs text-gray-500 dark:text-gray-400"> <b>Citations:</b><br/> {footnotes}</div>"""
+                                    assistant_message += f_response
+                                    messages.append({"role": "assistant", "content": assistant_message})
+                                    yield f"data: {json.dumps({'type': 'response', 'content': f_response})}\n\n"
+
+                                else:
+                                    print(f"Unhandled Event Type: {event_type}, Data: {event_data}")
                 except Exception as e:
                     app.logger.error(f"Error in web search: {str(e)}")
                     # Continue without search results
@@ -532,28 +631,29 @@ def chat():
                 #        })
 
                 # Generate response
-                stream = client.chat.completions.create(
-                    model=params['model'],
-                    messages=chat_messages,  # Use conversation history with PDF context
-                    temperature=params['temperature'],
-                    max_tokens=params['max_tokens'],
-                    top_p=params['top_p'],
-                    frequency_penalty=params['frequency_penalty'],
-                    presence_penalty=params['presence_penalty'],
-                    stop=params['stop'],
-                    n=params['n'],
-                    stream=True
-                )
+                if not params.get('enable_search'):
+                    stream = client.chat.completions.create(
+                        model=params['model'],
+                        messages=chat_messages,  # Use conversation history with PDF context
+                        temperature=params['temperature'],
+                        max_tokens=params['max_tokens'],
+                        top_p=params['top_p'],
+                        frequency_penalty=params['frequency_penalty'],
+                        presence_penalty=params['presence_penalty'],
+                        stop=params['stop'],
+                        n=params['n'],
+                        stream=True
+                    )
 
-                assistant_message = ""
-                for chunk in stream:
-                    if chunk.choices and len(chunk.choices) > 0 and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        assistant_message += content
-                        yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
+                    assistant_message = ""
+                    for chunk in stream:
+                        if chunk.choices and len(chunk.choices) > 0 and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            assistant_message += content
+                            yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
                 
                 
-                messages.append({"role": "assistant", "content": assistant_message})
+                    messages.append({"role": "assistant", "content": assistant_message})
 
                 try:
                     # Generate follow-up questions

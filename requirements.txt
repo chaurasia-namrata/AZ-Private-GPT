@@ -7,3 +7,5 @@ msrest
 azure-ai-formrecognizer
 bcrypt
 bs4
+azure-ai-projects
+azure-identity
